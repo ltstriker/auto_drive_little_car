@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta name="viewport" content="width=${WIDTH}, initial-scale=1"/>
+	<title>jsmpeg streaming</title>
+	<style type="text/css">
+		body {
+			background: ${BGCOLOR};
+			text-align: center;
+			margin-top: 10%;
+		}
+		#videoCanvas {
+			/*a bug */
+			/* Always stretch the canvas to 640x480, regardless of its
+			internal size. */
+			width: ${WIDTH}px;
+			height: ${HEIGHT}px;
+		}
+	</style>
+</head>
+<body>
+	<!-- The Canvas size specified here is the "initial" internal resolution. jsmpeg will
+		change this internal resolution to whatever the source provides. The size the
+		canvas is displayed on the website is dictated by the CSS style.
+	-->
+	<canvas id="videoCanvas" width="${WIDTH}" height="${HEIGHT}">
+		<p>
+			Please use a browser that supports the Canvas Element, like
+			<a href="http://www.google.com/chrome">Chrome</a>,
+			<a href="http://www.mozilla.com/firefox/">Firefox</a>,
+			<a href="http://www.apple.com/safari/">Safari</a> or Internet Explorer 10
+		</p>
+	</canvas>
+	<p id="Angle" >Angle: 0.00</p>
+	<p id="throttle">throttle: 0.00</p>
+	<p id="mesg"></p>
+	<script type="text/javascript">
+		// Socket for controller datas
+		var mAngle=document.getElementById("Angle");
+		var mThrottle=document.getElementById("throttle");
+		var msg=document.getElementById("mesg");		
+		var controller_client = new WebSocket('ws://' + window.location.hostname + ':${WS_CONTROLLER_PORT}/');
+		controller_client.onopen = function(evt) { msg.innerHTML="Connection open ..."; };
+		controller_client.onmessage = function(evt) 
+		{ 
+			var objs=eval(evt.data)
+			mAngle.innerHTML="angle:"+objs[0].angle ;
+			mThrottle.innerHTML="throttle:" + objs[0].throttle;
+		}; 
+	</script>
+	<script type="text/javascript" src="jsmpg.js"></script>
+	<script type="text/javascript">
+		// Show loading notice
+		var canvas = document.getElementById('videoCanvas');
+		var ctx = canvas.getContext('2d');
+		ctx.fillStyle = '${COLOR}';
+		ctx.fillText('Loading...', canvas.width/2-30, canvas.height/3);
+
+		// Setup the WebSocket connection and start the player
+		var client = new WebSocket('ws://' + window.location.hostname + ':${WS_PORT}/');
+		var player = new jsmpeg(client, {canvas:canvas});
+	</script>
+</body>
+</html>
