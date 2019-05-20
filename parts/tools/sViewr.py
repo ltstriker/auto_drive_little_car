@@ -10,7 +10,7 @@ cfg=load_config()
 class sViewr():
     def __init__(self):
         pygame.init()
-        self.display=pygame.display.set_mode((256,144), 0)
+        # self.display=pygame.display.set_mode((256,144), 0)
 
     def update(self):
         pass
@@ -41,9 +41,9 @@ class sViewr():
             ry=100+20-20*math.cos(rangle/1*math.pi/4)
             pygame.draw.line(img, (0,255,0), (128,144), (rx,ry), 3)
             
-            #pygame.image.save(img,"outputdata/"+snum+".jpeg")
-            self.display.blit(img, (0,0))
-            pygame.display.flip()
+            pygame.image.save(img,"outputdata/"+snum+".jpeg")
+            # self.display.blit(img, (0,0))
+            # pygame.display.flip()
     
     def shutdown(self):
         pass

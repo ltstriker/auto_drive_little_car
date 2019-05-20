@@ -17,7 +17,7 @@ import argparse
 from core.config import load_config
 from core.vehicle import Vehicle
 
-from parts.nets.tfCNN import CNN,reset_graph
+from parts.nets.tfRNN import CNN,reset_graph
 from parts.sensor.camera import ImageListCamera
 from parts.controller.controller import JoystickController
 from parts.controller.transform import Lambda
