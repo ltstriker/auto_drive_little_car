@@ -130,11 +130,11 @@ class CNN(TensorflowPilot):
 
 
         #卷积层建立
-            #                     #输入，卷积核个数，核大小，步进，激活函数，名称
-            # h = tf.layers.conv2d(self.x, 24, 5, strides=2, activation=tf.nn.relu, name="conv1")       
+        #                     #输入，卷积核个数，核大小，步进，激活函数，名称
+        h = tf.layers.conv2d(self.x, 1, 5, strides=2, activation=tf.nn.relu, name="conv1")       
             # # self.viwer_op.append(tf.summary.image("layer_1_Conv1", self.Viwer(24,h),max_outputs=10))
 
-            # h = tf.layers.conv2d(h, 32, 5, strides=2, activation=tf.nn.relu, name="conv2")
+        # h = tf.layers.conv2d(h, 1, 5, strides=2, activation=tf.nn.relu, name="conv2")
             # # self.viwer_op.append(tf.summary.image("layer_2_Conv2", self.Viwer(32,h)))
 
             # h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, name="conv3")
@@ -145,50 +145,65 @@ class CNN(TensorflowPilot):
             # # self.viwer_op.append(tf.summary.image("layer_5_Conv5", self.Viwer(64,h)))
 
         #RNN
-        n_hidden_units = 512*8
+        print(h.shape)
+        h = tf.nn.pool(
+                input=h,
+                window_shape=[3,1],
+                pooling_type='AVG',
+                strides= [2,1],
+                padding='VALID'
+            )
+        n_hidden_units = 35*63
+        # print("h.shape")
+        print(h.shape)
         # print("self.IMAGE_DIM:")
         # print(self.IMAGE_DIM)
-        n_inputs = 256*3
-        n_steps= 144
+        n_inputs = 34*126 #3*144*256
+        n_steps= 1
+        layer_num = 8
         # 在训练和测试的时候，我们想用不同的 batch_size.所以采用占位符的方式
-        # batch_size_t = tf.placeholder(tf.int32)  # 注意类型必须为 tf.int32
-        batch_size_t = 64
+        self.batch_size_t = tf.placeholder(tf.int32,[])  # 注意类型必须为 tf.int32
+        self.state_keep_prob = tf.placeholder(tf.float32,[])
+        # batch_size_t = 64
         weights = {
             # shape (28, 512)
             'in': tf.Variable(tf.random_normal([n_inputs, n_hidden_units])),
             # shape (512, 15)
-            'out': tf.Variable(tf.random_normal([n_hidden_units, 1024]))
+            'out': tf.Variable(tf.random_normal([n_hidden_units, 64]))
         }
         biases = {
             # shape (512, )
             'in': tf.Variable(tf.constant(0.1, shape=[n_hidden_units, ])),
             # shape (15, )
-            'out': tf.Variable(tf.constant(0.1, shape=[1024, ]))
+            'out': tf.Variable(tf.constant(0.1, shape=[64, ]))
         }
-        
-        X = tf.reshape(self.x, [-1, n_inputs])
+        # X = tf.transpose(self.x, perm=[0,3,1,2])
+        X = tf.reshape(h, [-1, n_inputs])
 
         # X_in = W*X + b
         X_in = tf.matmul(X, weights['in']) + biases['in']
         X_in = tf.reshape(X_in, [-1, n_steps, n_hidden_units])
 
         # 使用 basic LSTM Cell.
-        lstm_cell = tf.contrib.rnn.BasicLSTMCell(n_hidden_units, forget_bias=1.0, state_is_tuple=True)
-        init_state = lstm_cell.zero_state(batch_size_t, dtype=tf.float32) # 初始化全零 state
+        lstm_cell = tf.nn.rnn_cell.LSTMCell(n_hidden_units, forget_bias=1.0, state_is_tuple=True)
+        lstm_cell = tf.contrib.rnn.DropoutWrapper(cell=lstm_cell, input_keep_prob=0.99,state_keep_prob=self.state_keep_prob, output_keep_prob=1.0)
+        mlstm_cell = tf.contrib.rnn.MultiRNNCell([lstm_cell] * layer_num, state_is_tuple=True)
 
-        outputs, final_state = tf.nn.dynamic_rnn(lstm_cell, X_in, initial_state=init_state, time_major=False)
+        self.init_state = lstm_cell.zero_state(self.batch_size_t, dtype=tf.float32) # 初始化全零 state
+        outputs, self.init_state = tf.nn.dynamic_rnn(lstm_cell, X_in, initial_state=self.init_state, time_major=False)
+        # outputs, final_state = tf.nn.dynamic_rnn(mlstm_cell, X_in, dtype=tf.float32, time_major=False)
         outputs = tf.unstack(tf.transpose(outputs, [1,0,2]))
         z = tf.matmul(outputs[-1], weights['out']) + biases['out']    #选取最后一个 output
 
-        print(z.shape)
-        # #降维度 如 [N*4*4] -> [N*16]
-        # z = tf.layers.flatten(h)  
-        #全连接层1，节点100,激活函数relu
-        z = tf.layers.dense(z, 256, activation=tf.nn.relu, name="dense1")
-        z = tf.nn.dropout(z, 0.9, name="dropout1")
-        #全连接层2,节点50,激活函数relu
-        z = tf.layers.dense(z, 64, activation=tf.nn.relu, name="dense2")
-        z = tf.nn.dropout(z, 0.9, name="dropout2")
+        # print(z.shape)
+        # # #降维度 如 [N*4*4] -> [N*16]
+        # # z = tf.layers.flatten(h)  
+        # #全连接层1，节点100,激活函数relu
+        # z = tf.layers.dense(z, 256, activation=tf.nn.relu, name="dense1")
+        # z = tf.nn.dropout(z, 0.9, name="dropout1")
+        # #全连接层2,节点50,激活函数relu
+        # z = tf.layers.dense(z, 64, activation=tf.nn.relu, name="dense2")
+        # z = tf.nn.dropout(z, 0.9, name="dropout2")
         #全连接层3_1,节点15,激活函数softmax 
         self.angle_out = tf.layers.dense(z, 15, activation=tf.nn.softmax, name="angle_out") # category probability 15
         #全连接层3_2,节点1,激活函数None                                                                
@@ -248,6 +263,7 @@ class CNN(TensorflowPilot):
         earlystop_num = 0
         earlystop_flag = 0
 
+        init_state = None
         for epoch in range(epochs):
             index = np.random.permutation(total_train)
             img_shuffle = img_train[index].reshape(-1, batch_size,cfg['CNN']['CNN_IMG_HEIGHT'],cfg['CNN']['CNN_IMG_WIDTH'],  3)
@@ -258,8 +274,17 @@ class CNN(TensorflowPilot):
                 img_batch = img_shuffle[train_step]
                 angle_batch = angle_shuffle[train_step]
                 throttle_batch = throttle_shuffle[train_step]
-                feed = {self.x: img_batch, self.angle_target: angle_batch, self.throttle_target: throttle_batch}
-                loss, angle_loss, throttle_loss, step, _ = self.sess.run([self.loss, self.angle_loss, self.throttle_loss, self.global_step, self.train_op], feed)
+                feed = {
+                    self.x: img_batch, 
+                    self.angle_target: angle_batch, 
+                    self.throttle_target: throttle_batch,
+                    self.batch_size_t: batch_size,
+                    self.state_keep_prob: 0.5
+                }
+                if init_state is not None:
+                    feed[self.init_state]=init_state
+                init_state, loss, angle_loss, throttle_loss, step, _ = self.sess.run([self.init_state, self.loss, self.angle_loss, self.throttle_loss, self.global_step, self.train_op], feed)
+                # print(init_state)
                 #10个batch输出一次
                 if (step+1) % 10 == 0:
                     output_log = "step: %d, loss: %.6f, angle_loss: %.6f, throttle_loss: %.6f" % ((step+1), loss, angle_loss, throttle_loss)
@@ -270,7 +295,14 @@ class CNN(TensorflowPilot):
                 img_batch = img_val[val_step]
                 angle_batch = angle_val[val_step]
                 throttle_batch = throttle_val[val_step]
-                val_feed = {self.x: img_batch, self.angle_target: angle_batch, self.throttle_target: throttle_batch}
+                val_feed = {
+                    self.x: img_batch, 
+                    self.angle_target: angle_batch, 
+                    self.throttle_target: throttle_batch,
+                    self.batch_size_t: batch_size,
+                    self.state_keep_prob: 1,
+                    self.init_state: init_state
+                }
                 loss, angle_loss, throttle_loss = self.sess.run([self.loss, self.angle_loss, self.throttle_loss], val_feed)
                 val_loss += loss
                 val_throttle_loss += throttle_loss
