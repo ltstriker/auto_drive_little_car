@@ -400,6 +400,7 @@ class Tub(object):
                 # function.
                 if shuffle:
                     record_dict = df.sample(n=1).to_dict(orient='record')[0]
+                    print("shuffle!!!!")
                 else:
                     record_dict = row[1].to_dict()
 
@@ -429,7 +430,6 @@ class Tub(object):
                 # if len(arr.shape) == 1:
                 #    arr = arr.reshape(arr.shape + (1,))
                 batch_arrays[k] = arr
-
             yield batch_arrays
 
 
@@ -443,7 +443,6 @@ class Tub(object):
         for i in range(step_per_epoch):
             batch = next(batch_gen)
             for i, k in enumerate(X_keys):
-                # print(i)
                 X_train[i].extend(batch[k])
             for i, k in enumerate(Y_keys):
                 Y_train[i].extend(batch[k])
@@ -473,12 +472,17 @@ class Tub(object):
 
 
     def get_train_val_gen(self, X_keys, Y_keys, batch_size=32, record_transform=None, train_frac=.8):
-        train_df = train=self.df.sample(frac=train_frac,random_state=200)
-        val_df = self.df.drop(train_df.index)
+        length = len(self.df)
+        print(length)
+        length = int(length*train_frac)
+        train_df = train=self.df[:length]
+        print(train_df['cam/image_array'])
+        val_df = self.df[length:]
+        print(val_df['cam/image_array'])
 
         X_train, Y_train = self.get_train_gen(X_keys=X_keys, Y_keys=Y_keys, batch_size=batch_size, record_transform=record_transform, df=train_df)
         X_val, Y_val = self.get_train_gen(X_keys=X_keys, Y_keys=Y_keys, batch_size=batch_size, record_transform=record_transform, df=val_df)
-
+        print(len(X_val[0]), len(X_train[0]))
         return X_train, Y_train, X_val, Y_val
 
 

@@ -45,7 +45,7 @@ class View(BaseCommand):
             img_PIL = Image.open(path)
             img_PIL_Tensor = np.array(img_PIL)
             angle, throttle = CNN_model.run(img_PIL_Tensor)
-            sviewer.run(path, angle)
+            sviewer.run(path, angle, throttle)
 
 def execute_from_command_line():
 
