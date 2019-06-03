@@ -143,6 +143,9 @@ class Webcam(BaseCamera):
             s = 1 / self.framerate - (stop - start).total_seconds()
             if s > 0:
                 time.sleep(s)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
 
         self.cam.stop()
 

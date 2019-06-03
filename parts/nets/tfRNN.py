@@ -134,14 +134,14 @@ class CNN(TensorflowPilot):
         h = tf.layers.conv2d(self.x, 1, 5, strides=2, activation=tf.nn.relu, name="conv1")       
             # # self.viwer_op.append(tf.summary.image("layer_1_Conv1", self.Viwer(24,h),max_outputs=10))
 
-        # h = tf.layers.conv2d(h, 1, 5, strides=2, activation=tf.nn.relu, name="conv2")
+        h = tf.layers.conv2d(h, 1, 5, strides=2, activation=tf.nn.relu, name="conv2")
             # # self.viwer_op.append(tf.summary.image("layer_2_Conv2", self.Viwer(32,h)))
 
-            # h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, name="conv3")
+        h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, name="conv3")
             # # self.viwer_op.append(tf.summary.image("layer_3_Conv3", self.Viwer(64,h)))
-            # h = tf.layers.conv2d(h, 64, 3, strides=2, activation=tf.nn.relu, name="conv4")
+        h = tf.layers.conv2d(h, 64, 3, strides=2, activation=tf.nn.relu, name="conv4")
             # # self.viwer_op.append(tf.summary.image("layer_4_Conv4", self.Viwer(64,h)))
-            # h = tf.layers.conv2d(h, 64, 3, strides=1, activation=tf.nn.relu, name="conv5")
+        h = tf.layers.conv2d(h, 64, 3, strides=1, activation=tf.nn.relu, name="conv5")
             # # self.viwer_op.append(tf.summary.image("layer_5_Conv5", self.Viwer(64,h)))
 
         #RNN
@@ -153,12 +153,12 @@ class CNN(TensorflowPilot):
                 strides= [2,1],
                 padding='VALID'
             )
-        n_hidden_units = 35*63
+        n_hidden_units = 64
         # print("h.shape")
         print(h.shape)
         # print("self.IMAGE_DIM:")
         # print(self.IMAGE_DIM)
-        n_inputs = 34*126 #3*144*256
+        n_inputs = 2*12*64 #3*144*256
         n_steps= 1
         layer_num = 8
         # 在训练和测试的时候，我们想用不同的 batch_size.所以采用占位符的方式
@@ -199,8 +199,8 @@ class CNN(TensorflowPilot):
         # # #降维度 如 [N*4*4] -> [N*16]
         # # z = tf.layers.flatten(h)  
         # #全连接层1，节点100,激活函数relu
-        # z = tf.layers.dense(z, 256, activation=tf.nn.relu, name="dense1")
-        # z = tf.nn.dropout(z, 0.9, name="dropout1")
+        z = tf.layers.dense(z, 50, activation=tf.nn.relu, name="dense1")
+        z = tf.nn.dropout(z, 0.9, name="dropout1")
         # #全连接层2,节点50,激活函数relu
         # z = tf.layers.dense(z, 64, activation=tf.nn.relu, name="dense2")
         # z = tf.nn.dropout(z, 0.9, name="dropout2")
@@ -231,7 +231,7 @@ class CNN(TensorflowPilot):
             optimizer = tf.train.AdamOptimizer(self.lr)
             self.train_op = optimizer.minimize(self.loss, global_step=self.global_step)
 
-    def train(self, X_train, Y_train, X_val, Y_val, saved_model, epochs=100, exit_k=5, batch_size=32, new_model=True):
+    def train(self, X_train, Y_train, X_val, Y_val, saved_model, epochs=100, exit_k=10, batch_size=32, new_model=True):
         if not new_model:
             self.load(saved_model)
 
@@ -244,7 +244,8 @@ class CNN(TensorflowPilot):
         throttle_val = np.array(Y_val[1])
 
         total_train = len(img_train)
-        # print(total_train)
+        print("total_train")
+        print(total_train)
         total_val = len(img_val)
         # print(total_val)
 
@@ -279,7 +280,7 @@ class CNN(TensorflowPilot):
                     self.angle_target: angle_batch, 
                     self.throttle_target: throttle_batch,
                     self.batch_size_t: batch_size,
-                    self.state_keep_prob: 0.5
+                    self.state_keep_prob: 0.1
                 }
                 if init_state is not None:
                     feed[self.init_state]=init_state
@@ -300,7 +301,7 @@ class CNN(TensorflowPilot):
                     self.angle_target: angle_batch, 
                     self.throttle_target: throttle_batch,
                     self.batch_size_t: batch_size,
-                    self.state_keep_prob: 1,
+                    self.state_keep_prob: 0.8,
                     self.init_state: init_state
                 }
                 loss, angle_loss, throttle_loss = self.sess.run([self.loss, self.angle_loss, self.throttle_loss], val_feed)
@@ -332,11 +333,15 @@ class CNN(TensorflowPilot):
             if earlystop_flag:
                 print("Early Stop")
                 break
-
+            if val_angle_loss < 0.2:
+                print("stop!")
+                break
     def run(self, img_arr):   
         img_arr = img_arr.reshape((1,) + img_arr.shape)
        
-        feed = {self.x: img_arr}
+        feed = {self.x: img_arr,
+                self.state_keep_prob: 1,
+                self.batch_size_t: 1,}
 
         angle, throttle= self.sess.run([self.angle_out, self.throttle_out], feed)
         #pak=self.sess.run([self.angle_out, self.throttle_out]+self.viwer_op, feed)

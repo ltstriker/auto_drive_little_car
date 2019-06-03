@@ -17,9 +17,9 @@ import time
 
 
 #from netbase import Netbase
-from Aura.parts.config import cfg
+from parts.config import cfg
 #import netbase
-from Aura.parts.netbase import Netbase
+from parts.netbase import Netbase
 
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 

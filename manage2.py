@@ -173,7 +173,7 @@ class Train(BaseCommand):
         total_records = len(tubgroup.df)
         total_train = int(total_records * cfg['TRAINING']['TRAIN_TEST_SPLIT'])
         total_val = total_records - total_train
-        print('train: %d, validation: %d' % (total_train, total_val))
+        print('train: %d, validation: %d' % (total_train, total_train))
         steps_per_epoch = total_train // cfg['TRAINING']['BATCH_SIZE']
         print('steps_per_epoch', steps_per_epoch)
 
@@ -183,7 +183,7 @@ class Train(BaseCommand):
         if base_model_path is not None:
             base_model_path = os.path.expanduser(base_model_path)
             #tfcategorical.load_tensorflow(base_model_path)
-        CNN_model.train(X_train, Y_train, X_val, Y_val, saved_model=new_model_path,epochs=30, 
+        CNN_model.train(X_train, Y_train, X_val, Y_val, saved_model=new_model_path,epochs=50, 
                                 batch_size=cfg['TRAINING']['BATCH_SIZE'], new_model=True)
         CNN_model.close_sess()
 

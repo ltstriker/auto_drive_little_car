@@ -191,7 +191,8 @@ class CNN(TensorflowPilot):
         throttle_val = np.array(Y_val[1])
 
         total_train = len(img_train)
-        # print(total_train)
+        print("total_train:")
+        print(total_train)
         total_val = len(img_val)
         # print(total_val)
 
