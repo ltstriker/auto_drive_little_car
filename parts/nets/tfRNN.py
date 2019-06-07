@@ -231,7 +231,7 @@ class CNN(TensorflowPilot):
             optimizer = tf.train.AdamOptimizer(self.lr)
             self.train_op = optimizer.minimize(self.loss, global_step=self.global_step)
 
-    def train(self, X_train, Y_train, X_val, Y_val, saved_model, epochs=100, exit_k=10, batch_size=32, new_model=True):
+    def train(self, X_train, Y_train, X_val, Y_val, saved_model, epochs=100, exit_k=5, batch_size=32, new_model=True):
         if not new_model:
             self.load(saved_model)
 
@@ -244,16 +244,15 @@ class CNN(TensorflowPilot):
         throttle_val = np.array(Y_val[1])
 
         total_train = len(img_train)
-        print("total_train")
-        print(total_train)
+
         total_val = len(img_val)
         # print(total_val)
 
-        img_val = img_val.reshape(-1, batch_size,cfg['CNN']['CNN_IMG_HEIGHT'],cfg['CNN']['CNN_IMG_WIDTH'], 3)
+        img_val = img_val.reshape(-1, batch_size, 4,cfg['CNN']['CNN_IMG_HEIGHT'],cfg['CNN']['CNN_IMG_WIDTH'], 3)
         # print(img_val.shape)
-        angle_val = angle_val.reshape(-1, batch_size, 15)
+        angle_val = angle_val.reshape(-1, batch_size, 4, 15)
         # print(img_val.shape)
-        throttle_val = throttle_val.reshape(-1, batch_size, 1)
+        throttle_val = throttle_val.reshape(-1, batch_size, 4, 1)
 
         train_steps = int(total_train // batch_size)
         val_steps = int(total_val // batch_size)
@@ -267,9 +266,11 @@ class CNN(TensorflowPilot):
         init_state = None
         for epoch in range(epochs):
             index = np.random.permutation(total_train)
-            img_shuffle = img_train[index].reshape(-1, batch_size,cfg['CNN']['CNN_IMG_HEIGHT'],cfg['CNN']['CNN_IMG_WIDTH'],  3)
-            angle_shuffle = angle_train[index].reshape(-1, batch_size, 15)
-            throttle_shuffle = throttle_train[index].reshape(-1, batch_size, 1)
+            index = range(total_train)
+            print('img shape: '+str(img_train[index].shape))
+            img_shuffle = img_train[index].reshape(-1, batch_size, 4, cfg['CNN']['CNN_IMG_HEIGHT'],cfg['CNN']['CNN_IMG_WIDTH'],  3)
+            angle_shuffle = angle_train[index].reshape(-1, batch_size, 4, 15)
+            throttle_shuffle = throttle_train[index].reshape(-1, batch_size, 4, 1)
 
             for train_step in range(train_steps):
                 img_batch = img_shuffle[train_step]
@@ -280,7 +281,7 @@ class CNN(TensorflowPilot):
                     self.angle_target: angle_batch, 
                     self.throttle_target: throttle_batch,
                     self.batch_size_t: batch_size,
-                    self.state_keep_prob: 0.1
+                    self.state_keep_prob: 0.5
                 }
                 if init_state is not None:
                     feed[self.init_state]=init_state
