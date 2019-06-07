@@ -166,3 +166,5 @@ fabric.properties
 .idea/httpRequests
 
 data/
+logs/
+models/

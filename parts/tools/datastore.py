@@ -421,9 +421,14 @@ class Tub(object):
 
         while True:
             record_list = []
-            for _ in range(batch_size):
+            for _ in range(batch_size*4):
                 record_list.append(next(record_gen))
-
+            # sequence_list = []
+            # for i in range(len(record_list)-3):
+                # for j in range(4):
+                    # sequence_list.append(record_list[i+j])
+            # print(len(sequence_list))
+            # record_list = sequence_list
             batch_arrays = {}
             for i, k in enumerate(keys):
                 arr = np.array([r[k] for r in record_list])
@@ -456,6 +461,27 @@ class Tub(object):
                 print("Already loading {} batches...".format(i+1))
         # print(np.array(Y_train[1]).shape)
         # input("Waiting")
+        
+        # X_train_ = []
+        # Y_train_ = []
+
+        # X_train_ = np.array(X_train)
+        # Y_train_ = np.array(Y_train)
+        # print(X_train_.shape, Y_train_.shape)
+
+        # for i in range(len(X_train[0])-4):
+            # X_sequence = []
+            # Y_sequence = []
+            # for k in range(4):
+                # X_sequence.extend(X_train[0][i+k])
+                # Y_sequence.extend(Y_train[0][i+k])
+            # X_train_.extend(X_sequence)
+            # Y_train_.extend(Y_sequence)
+        # X_train = np.array(X_train_)
+        # Y_train = np.array(Y_train_)
+        # X_train = X_train.reshape(-1, 4, 144,256, 3)
+        # Y_train = Y_train.reshape(2, 4, -1)
+        # print(X_train.shape, Y_train.shape)
         return X_train, Y_train
 
         # while True:
@@ -473,16 +499,16 @@ class Tub(object):
 
     def get_train_val_gen(self, X_keys, Y_keys, batch_size=32, record_transform=None, train_frac=.8):
         length = len(self.df)
-        print(length)
+        # print(length)
         length = int(length*train_frac)
         train_df = train=self.df[:length]
-        print(train_df['cam/image_array'])
+        # print(train_df['cam/image_array'])
         val_df = self.df[length:]
-        print(val_df['cam/image_array'])
+        # print(val_df['cam/image_array'])
 
         X_train, Y_train = self.get_train_gen(X_keys=X_keys, Y_keys=Y_keys, batch_size=batch_size, record_transform=record_transform, df=train_df)
         X_val, Y_val = self.get_train_gen(X_keys=X_keys, Y_keys=Y_keys, batch_size=batch_size, record_transform=record_transform, df=val_df)
-        print(len(X_val[0]), len(X_train[0]))
+        # print(len(X_val[0]), len(X_train[0]))
         return X_train, Y_train, X_val, Y_val
 
 
