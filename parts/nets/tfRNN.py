@@ -153,7 +153,7 @@ class CNN(TensorflowPilot):
                 strides= [2,1],
                 padding='VALID'
             )
-        n_hidden_units = 64
+        n_hidden_units = 256
         # print("h.shape")
         print(h.shape)
         # print("self.IMAGE_DIM:")
