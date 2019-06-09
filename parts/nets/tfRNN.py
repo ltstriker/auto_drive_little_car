@@ -125,41 +125,12 @@ class CNN(TensorflowPilot):
         #可视化
         self.writer = tf.summary.FileWriter("./logs",self.g)
        
-        #图像输入层 
-        self.x = tf.placeholder(tf.float32, shape=self.IMAGE_DIM, name='input') 
-        # self.viwer_op.append(tf.summary.image("layer_0_input", self.x,max_outputs=10))
-
-
-        #卷积层建立
-        #                     #输入，卷积核个数，核大小，步进，激活函数，名称
-        h = tf.layers.conv2d(self.x, 1, 5, strides=2, activation=tf.nn.relu, name="conv1")       
-            # # self.viwer_op.append(tf.summary.image("layer_1_Conv1", self.Viwer(24,h),max_outputs=10))
-
-        h = tf.layers.conv2d(h, 1, 5, strides=2, activation=tf.nn.relu, name="conv2")
-            # # self.viwer_op.append(tf.summary.image("layer_2_Conv2", self.Viwer(32,h)))
-
-        h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, name="conv3")
-            # # self.viwer_op.append(tf.summary.image("layer_3_Conv3", self.Viwer(64,h)))
-        h = tf.layers.conv2d(h, 64, 3, strides=2, activation=tf.nn.relu, name="conv4")
-            # # self.viwer_op.append(tf.summary.image("layer_4_Conv4", self.Viwer(64,h)))
-        h = tf.layers.conv2d(h, 64, 3, strides=1, activation=tf.nn.relu, name="conv5")
-            # # self.viwer_op.append(tf.summary.image("layer_5_Conv5", self.Viwer(64,h)))
-
-        #RNN
-        print(h.shape)
-        h = tf.nn.pool(
-                input=h,
-                window_shape=[3,1],
-                pooling_type='AVG',
-                strides= [2,1],
-                padding='VALID'
-            )
-        n_hidden_units = 256
+        n_hidden_units = 128
         # print("h.shape")
         # print(h.shape)
         # print("self.IMAGE_DIM:")
         # print(self.IMAGE_DIM)
-        n_inputs = 3*144*256
+        n_inputs = 2*12*64
         self.sequence = 4
         layer_num = 8
 
@@ -172,32 +143,33 @@ class CNN(TensorflowPilot):
                         name='input') 
         # self.viwer_op.append(tf.summary.image("layer_0_input", self.x,max_outputs=10))
 
-
-        #卷积层建立
-        #                     #输入，卷积核个数，核大小，步进，激活函数，名称
-        # h = tf.layers.conv2d(self.x, 1, 5, strides=2, activation=tf.nn.relu, name="conv1")       
-        #     # # self.viwer_op.append(tf.summary.image("layer_1_Conv1", self.Viwer(24,h),max_outputs=10))
-
-        # h = tf.layers.conv2d(h, 1, 5, strides=2, activation=tf.nn.relu, name="conv2")
-        #     # # self.viwer_op.append(tf.summary.image("layer_2_Conv2", self.Viwer(32,h)))
-
-        # h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, name="conv3")
-        #     # # self.viwer_op.append(tf.summary.image("layer_3_Conv3", self.Viwer(64,h)))
-        # h = tf.layers.conv2d(h, 64, 3, strides=2, activation=tf.nn.relu, name="conv4")
-        #     # # self.viwer_op.append(tf.summary.image("layer_4_Conv4", self.Viwer(64,h)))
-        # h = tf.layers.conv2d(h, 64, 3, strides=1, activation=tf.nn.relu, name="conv5")
-        #     # # self.viwer_op.append(tf.summary.image("layer_5_Conv5", self.Viwer(64,h)))
-
-        # print(h.shape)
-        # h = tf.nn.pool(
-        #         input=h,
-        #         window_shape=[3,1],
-        #         pooling_type='AVG',
-        #         strides= [2,1],
-        #         padding='VALID'
-        #     )
-
         h = self.x
+        h = tf.reshape(h, [-1,144,256,3])
+        #卷积层建立
+                            #输入，卷积核个数，核大小，步进，激活函数，名称
+        h = tf.layers.conv2d(h, 1, 5, strides=2, activation=tf.nn.relu, name="conv1")       
+            # # self.viwer_op.append(tf.summary.image("layer_1_Conv1", self.Viwer(24,h),max_outputs=10))
+
+        h = tf.layers.conv2d(h, 1, 5, strides=2, activation=tf.nn.relu, name="conv2")
+            # # self.viwer_op.append(tf.summary.image("layer_2_Conv2", self.Viwer(32,h)))
+
+        h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, name="conv3")
+            # # self.viwer_op.append(tf.summary.image("layer_3_Conv3", self.Viwer(64,h)))
+        h = tf.layers.conv2d(h, 64, 3, strides=2, activation=tf.nn.relu, name="conv4")
+            # # self.viwer_op.append(tf.summary.image("layer_4_Conv4", self.Viwer(64,h)))
+        h = tf.layers.conv2d(h, 64, 3, strides=1, activation=tf.nn.relu, name="conv5")
+            # # self.viwer_op.append(tf.summary.image("layer_5_Conv5", self.Viwer(64,h)))
+
+        print(h.shape)
+        h = tf.nn.pool(
+                input=h,
+                window_shape=[3,1],
+                pooling_type='AVG',
+                strides= [2,1],
+                padding='VALID'
+            )
+
+        # h = self.x
         #RNN
         # batch_size_t = 64
         weights = {
@@ -213,6 +185,7 @@ class CNN(TensorflowPilot):
             'out': tf.Variable(tf.constant(0.1, shape=[64, ]))
         }
         # X = tf.transpose(self.x, perm=[0,3,1,2])
+        print("hshape:"+str(h.shape))
         X = tf.reshape(h, [-1, n_inputs])
 
         # X_in = W*X + b
@@ -289,9 +262,9 @@ class CNN(TensorflowPilot):
         # print(img_val.shape)
         throttle_val = throttle_val.reshape(-1, batch_size, 4, 1)
 
-        train_steps = int(total_train // batch_size)
-        val_steps = int(total_val // batch_size)
-        # print(val_steps)
+        train_steps = int(total_train // (batch_size*4))
+        val_steps = int(total_val // (batch_size*4))
+        print("total_train:"+str(total_train)+"train_steps:" + str(train_steps))
         # input("waiting")
 
         val_loss_min = 10000
@@ -377,7 +350,7 @@ class CNN(TensorflowPilot):
                 break
     def run(self, img_arr):   
         img_arr = img_arr.reshape((1,) + img_arr.shape)
-       
+        print(img_arr.shape)
         feed = {self.x: img_arr,
                 self.state_keep_prob: 1,
                 self.batch_size_t: 1,}

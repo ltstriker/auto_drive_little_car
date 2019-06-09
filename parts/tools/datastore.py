@@ -421,14 +421,14 @@ class Tub(object):
 
         while True:
             record_list = []
-            for _ in range(batch_size*4):
+            for _ in range(batch_size+3):
                 record_list.append(next(record_gen))
-            # sequence_list = []
-            # for i in range(len(record_list)-3):
-                # for j in range(4):
-                    # sequence_list.append(record_list[i+j])
-            # print(len(sequence_list))
-            # record_list = sequence_list
+            sequence_list = []
+            for i in range(len(record_list)-3):
+                for j in range(4):
+                    sequence_list.append(record_list[i+j])
+            print(len(sequence_list))
+            record_list = sequence_list
             batch_arrays = {}
             for i, k in enumerate(keys):
                 arr = np.array([r[k] for r in record_list])

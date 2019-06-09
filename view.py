@@ -39,12 +39,21 @@ class View(BaseCommand):
         tubs = os.listdir(tub)
         tubs = list(filter(lambda x:x.endswith('jpg'),tubs))
         tubs.sort(key=lambda x:int(x[:-21]))
+        cam1 = np.zeros((144,256,3))
+        cam2 = np.zeros((144,256,3))
+        cam3 = np.zeros((144,256,3))
+        cam4 = np.zeros((144,256,3))
         for etub in tubs:
             path = tub+'/'+etub
             print(tub,etub,path)
             img_PIL = Image.open(path)
             img_PIL_Tensor = np.array(img_PIL)
-            angle, throttle = CNN_model.run(img_PIL_Tensor)
+            cam1 = cam2
+            cam2 = cam3
+            cam3 = cam4
+            cam4 = img_PIL_Tensor
+            cam = np.array([cam1,cam2,cam3,cam4])
+            angle, throttle = CNN_model.run(cam)
             sviewer.run(path, angle, throttle)
 
 def execute_from_command_line():
