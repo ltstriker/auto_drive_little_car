@@ -81,9 +81,10 @@ class TensorflowPilot:
 class CNN(TensorflowPilot):
     def __init__(self, is_training=True, learning_rate=0.001, *args, **kwargs):
         super(CNN, self).__init__(*args, **kwargs)
-        self.IMAGE_DIM = [None, cfg['CNN']['CNN_IMG_HEIGHT'],cfg['CNN']['CNN_IMG_WIDTH'] , 3]
+        # self.sequenceLen = 4
+        self.IMAGE_DIM = [None, 4, cfg['CNN']['CNN_IMG_HEIGHT'],cfg['CNN']['CNN_IMG_WIDTH'] , 3]
         self.ANGLE_DIM = [None, 15]  # one_hot
-        self.THROTTLE_DIM = [None, 1]
+        self.THROTTLE_DIM = [None,  1]
 
         self.is_training = is_training
         self.learning_rate = learning_rate
@@ -123,47 +124,52 @@ class CNN(TensorflowPilot):
     def build_graph(self):       
         #可视化
         self.writer = tf.summary.FileWriter("./logs",self.g)
-       
+        
+        n_hidden_units = 64
+        # print("h.shape")
+        # print(h.shape)
+        # print("self.IMAGE_DIM:")
+        # print(self.IMAGE_DIM)
+        n_inputs = 3*144*256
+        self.sequence = 4
+        layer_num = 8
+
+        # 在训练和测试的时候，我们想用不同的 batch_size.所以采用占位符的方式
+        self.batch_size_t = tf.placeholder(tf.int32,[])  # 注意类型必须为 tf.int32
+        self.state_keep_prob = tf.placeholder(tf.float32,[])
         #图像输入层 
-        self.x = tf.placeholder(tf.float32, shape=self.IMAGE_DIM, name='input') 
+        self.x = tf.placeholder(tf.float32, 
+                        shape=self.IMAGE_DIM, 
+                        name='input') 
         # self.viwer_op.append(tf.summary.image("layer_0_input", self.x,max_outputs=10))
 
 
         #卷积层建立
         #                     #输入，卷积核个数，核大小，步进，激活函数，名称
-        h = tf.layers.conv2d(self.x, 1, 5, strides=2, activation=tf.nn.relu, name="conv1")       
-            # # self.viwer_op.append(tf.summary.image("layer_1_Conv1", self.Viwer(24,h),max_outputs=10))
+        # h = tf.layers.conv2d(self.x, 1, 5, strides=2, activation=tf.nn.relu, name="conv1")       
+        #     # # self.viwer_op.append(tf.summary.image("layer_1_Conv1", self.Viwer(24,h),max_outputs=10))
 
-        h = tf.layers.conv2d(h, 1, 5, strides=2, activation=tf.nn.relu, name="conv2")
-            # # self.viwer_op.append(tf.summary.image("layer_2_Conv2", self.Viwer(32,h)))
+        # h = tf.layers.conv2d(h, 1, 5, strides=2, activation=tf.nn.relu, name="conv2")
+        #     # # self.viwer_op.append(tf.summary.image("layer_2_Conv2", self.Viwer(32,h)))
 
-        h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, name="conv3")
-            # # self.viwer_op.append(tf.summary.image("layer_3_Conv3", self.Viwer(64,h)))
-        h = tf.layers.conv2d(h, 64, 3, strides=2, activation=tf.nn.relu, name="conv4")
-            # # self.viwer_op.append(tf.summary.image("layer_4_Conv4", self.Viwer(64,h)))
-        h = tf.layers.conv2d(h, 64, 3, strides=1, activation=tf.nn.relu, name="conv5")
-            # # self.viwer_op.append(tf.summary.image("layer_5_Conv5", self.Viwer(64,h)))
+        # h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, name="conv3")
+        #     # # self.viwer_op.append(tf.summary.image("layer_3_Conv3", self.Viwer(64,h)))
+        # h = tf.layers.conv2d(h, 64, 3, strides=2, activation=tf.nn.relu, name="conv4")
+        #     # # self.viwer_op.append(tf.summary.image("layer_4_Conv4", self.Viwer(64,h)))
+        # h = tf.layers.conv2d(h, 64, 3, strides=1, activation=tf.nn.relu, name="conv5")
+        #     # # self.viwer_op.append(tf.summary.image("layer_5_Conv5", self.Viwer(64,h)))
 
+        # print(h.shape)
+        # h = tf.nn.pool(
+        #         input=h,
+        #         window_shape=[3,1],
+        #         pooling_type='AVG',
+        #         strides= [2,1],
+        #         padding='VALID'
+        #     )
+
+        h = self.x
         #RNN
-        print(h.shape)
-        h = tf.nn.pool(
-                input=h,
-                window_shape=[3,1],
-                pooling_type='AVG',
-                strides= [2,1],
-                padding='VALID'
-            )
-        n_hidden_units = 64
-        # print("h.shape")
-        print(h.shape)
-        # print("self.IMAGE_DIM:")
-        # print(self.IMAGE_DIM)
-        n_inputs = 2*12*64 #3*144*256
-        n_steps= 1
-        layer_num = 8
-        # 在训练和测试的时候，我们想用不同的 batch_size.所以采用占位符的方式
-        self.batch_size_t = tf.placeholder(tf.int32,[])  # 注意类型必须为 tf.int32
-        self.state_keep_prob = tf.placeholder(tf.float32,[])
         # batch_size_t = 64
         weights = {
             # shape (28, 512)
@@ -182,7 +188,7 @@ class CNN(TensorflowPilot):
 
         # X_in = W*X + b
         X_in = tf.matmul(X, weights['in']) + biases['in']
-        X_in = tf.reshape(X_in, [-1, n_steps, n_hidden_units])
+        X_in = tf.reshape(X_in, [-1, self.sequence, n_hidden_units])
 
         # 使用 basic LSTM Cell.
         lstm_cell = tf.nn.rnn_cell.LSTMCell(n_hidden_units, forget_bias=1.0, state_is_tuple=True)
@@ -274,8 +280,11 @@ class CNN(TensorflowPilot):
 
             for train_step in range(train_steps):
                 img_batch = img_shuffle[train_step]
-                angle_batch = angle_shuffle[train_step]
-                throttle_batch = throttle_shuffle[train_step]
+                # print(angle_shuffle[train_step].transpose(1,0,2).shape)
+                angle_batch = angle_shuffle[train_step].transpose(1,0,2)
+                angle_batch = angle_batch[len(angle_batch)-1]
+                throttle_batch = throttle_shuffle[train_step].transpose(1,0,2)
+                throttle_batch = throttle_batch[len(throttle_batch)-1]
                 feed = {
                     self.x: img_batch, 
                     self.angle_target: angle_batch, 
@@ -295,8 +304,8 @@ class CNN(TensorflowPilot):
             val_loss = val_angle_loss = val_throttle_loss = 0
             for val_step in range(val_steps):
                 img_batch = img_val[val_step]
-                angle_batch = angle_val[val_step]
-                throttle_batch = throttle_val[val_step]
+                angle_batch = angle_val[val_step].transpose(1,0,2)[3]
+                throttle_batch = throttle_val[val_step].transpose(1,0,2)[3]
                 val_feed = {
                     self.x: img_batch, 
                     self.angle_target: angle_batch, 
