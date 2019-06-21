@@ -412,7 +412,7 @@ class Tub(object):
                 yield record_dict
 
 
-    def get_batch_gen(self, keys, record_transform=None, batch_size=32, shuffle=False, df=None):
+    def get_batch_gen(self, keys, record_transform=None, batch_size=32, seq_len=4, shuffle=False, df=None):
 
         record_gen = self.get_record_gen(record_transform, shuffle=shuffle, df=df)
 
@@ -421,13 +421,12 @@ class Tub(object):
 
         while True:
             record_list = []
-            for _ in range(batch_size+3):
+            for _ in range(batch_size+seq_len-1):
                 record_list.append(next(record_gen))
             sequence_list = []
-            for i in range(len(record_list)-3):
-                for j in range(4):
+            for i in range(batch_size):
+                for j in range(seq_len):
                     sequence_list.append(record_list[i+j])
-            print(len(sequence_list))
             record_list = sequence_list
             batch_arrays = {}
             for i, k in enumerate(keys):
@@ -438,9 +437,9 @@ class Tub(object):
             yield batch_arrays
 
 
-    def get_train_gen(self, X_keys, Y_keys, batch_size=32, record_transform=None, df=None):
-        batch_gen = self.get_batch_gen(X_keys + Y_keys, batch_size=batch_size, record_transform=record_transform, df=df)
-        step_per_epoch = int(len(df)/batch_size)
+    def get_train_gen(self, X_keys, Y_keys, batch_size=32, seq_len=4, record_transform=None, df=None):
+        batch_gen = self.get_batch_gen(X_keys + Y_keys, batch_size=batch_size, seq_len=seq_len, record_transform=record_transform, df=df)
+        step_per_epoch = int(len(df)/(batch_size+seq_len-1))
 
         X_train = [[] for k in X_keys]
         Y_train = [[] for k in Y_keys]
@@ -497,7 +496,7 @@ class Tub(object):
             # yield X, Y # output a turple (X, Y)
 
 
-    def get_train_val_gen(self, X_keys, Y_keys, batch_size=32, record_transform=None, train_frac=.8):
+    def get_train_val_gen(self, X_keys, Y_keys, batch_size=32, seq_len=4, record_transform=None, train_frac=.8):
         length = len(self.df)
         # print(length)
         length = int(length*train_frac)
@@ -506,8 +505,8 @@ class Tub(object):
         val_df = self.df[length:]
         # print(val_df['cam/image_array'])
 
-        X_train, Y_train = self.get_train_gen(X_keys=X_keys, Y_keys=Y_keys, batch_size=batch_size, record_transform=record_transform, df=train_df)
-        X_val, Y_val = self.get_train_gen(X_keys=X_keys, Y_keys=Y_keys, batch_size=batch_size, record_transform=record_transform, df=val_df)
+        X_train, Y_train = self.get_train_gen(X_keys=X_keys, Y_keys=Y_keys, batch_size=batch_size, seq_len=seq_len, record_transform=record_transform, df=train_df)
+        X_val, Y_val = self.get_train_gen(X_keys=X_keys, Y_keys=Y_keys, batch_size=batch_size, seq_len=seq_len, record_transform=record_transform, df=val_df)
         # print(len(X_val[0]), len(X_train[0]))
         return X_train, Y_train, X_val, Y_val
 

@@ -27,6 +27,7 @@ from parts.controller.transform import Lambda
 from parts.tools.datastore import TubHandler, TubGroup, Tub
 from parts.tools import data
 from parts.tools.sViewr import sViewr
+from parts.sensor import sequence
 
 
 class BaseCommand():
@@ -66,7 +67,6 @@ class Drive(BaseCommand):
         
         
         
-        
         #See if we should even run the pilot module. 
         #This is only needed because the part run_condition only accepts boolean
         def pilot_condition(mode):
@@ -76,6 +76,9 @@ class Drive(BaseCommand):
                 return True
         pilot_condition_part = Lambda(pilot_condition)
         V.add(pilot_condition_part, inputs=['user/mode'], outputs=['run_pilot'])
+        
+        seq = sequence(seq_num = 16)
+        V.add(seq, inputs=['cam/image_array'], outputs=['cam/image_array'], run_condition='run_pilot')
         
         #Run the pilot if the mode is not user.
 
@@ -169,6 +172,7 @@ class Train(BaseCommand):
         tubgroup = TubGroup(tub_names)
         X_train, Y_train, X_val, Y_val = tubgroup.get_train_val_gen(X_keys, y_keys,
                                                                     record_transform=train_record_transform,
+                                                                    seq_len = cfg['TRAINING']['SEQUENCE_LENGTH'],
                                                                     batch_size=cfg['TRAINING']['BATCH_SIZE'],
                                                                     train_frac=cfg['TRAINING']['TRAIN_TEST_SPLIT'])
         print('tub_names', tub_names)

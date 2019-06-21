@@ -79,15 +79,16 @@ class TensorflowPilot:
 
 
 class CNN(TensorflowPilot):
-    def __init__(self, is_training=True, learning_rate=0.001, *args, **kwargs):
+    def __init__(self, is_training=True, learning_rate=0.001, sequenceLen=4, *args, **kwargs):
         super(CNN, self).__init__(*args, **kwargs)
-        # self.sequenceLen = 4
-        self.IMAGE_DIM = [None, 4, cfg['CNN']['CNN_IMG_HEIGHT'],cfg['CNN']['CNN_IMG_WIDTH'] , 3]
+        self.sequenceLen = cfg['TRAINING']['SEQUENCE_LENGTH']
+        self.IMAGE_DIM = [None, self.sequenceLen, cfg['CNN']['CNN_IMG_HEIGHT'],cfg['CNN']['CNN_IMG_WIDTH'] , 3]
         self.ANGLE_DIM = [None, 15]  # one_hot
         self.THROTTLE_DIM = [None,  1]
 
         self.is_training = is_training
         self.learning_rate = learning_rate
+        self.forget_bias = 0.0 if is_training else 0.0
 
         self.viwer_op=[]
 
@@ -131,8 +132,7 @@ class CNN(TensorflowPilot):
         # print("self.IMAGE_DIM:")
         # print(self.IMAGE_DIM)
         n_inputs = 2*12*64
-        self.sequence = 4
-        layer_num = 8
+        layer_num = 2
 
         # 在训练和测试的时候，我们想用不同的 batch_size.所以采用占位符的方式
         self.batch_size_t = tf.placeholder(tf.int32,[])  # 注意类型必须为 tf.int32
@@ -160,7 +160,7 @@ class CNN(TensorflowPilot):
         h = tf.layers.conv2d(h, 64, 3, strides=1, activation=tf.nn.relu, name="conv5")
             # # self.viwer_op.append(tf.summary.image("layer_5_Conv5", self.Viwer(64,h)))
 
-        print(h.shape)
+        # print(h.shape)
         h = tf.nn.pool(
                 input=h,
                 window_shape=[3,1],
@@ -168,7 +168,7 @@ class CNN(TensorflowPilot):
                 strides= [2,1],
                 padding='VALID'
             )
-
+        print(h.shape)
         # h = self.x
         #RNN
         # batch_size_t = 64
@@ -189,18 +189,26 @@ class CNN(TensorflowPilot):
         X = tf.reshape(h, [-1, n_inputs])
 
         # X_in = W*X + b
-        X_in = tf.matmul(X, weights['in']) + biases['in']
-        X_in = tf.reshape(X_in, [-1, self.sequence, n_hidden_units])
+        # X_in = tf.matmul(X, weights['in']) + biases['in']
+        X_in = X
+        X_in = tf.reshape(X_in, [-1, self.sequenceLen, n_inputs])
 
+        print("forget_bias: " +str(self.forget_bias))
         # 使用 basic LSTM Cell.
-        lstm_cell = tf.nn.rnn_cell.LSTMCell(n_hidden_units, forget_bias=1.0, state_is_tuple=True)
+        lstm_cell = tf.nn.rnn_cell.LSTMCell(n_hidden_units, forget_bias=self.forget_bias, state_is_tuple=True)
         lstm_cell = tf.contrib.rnn.DropoutWrapper(cell=lstm_cell, input_keep_prob=0.99,state_keep_prob=self.state_keep_prob, output_keep_prob=1.0)
-        mlstm_cell = tf.contrib.rnn.MultiRNNCell([lstm_cell] * layer_num, state_is_tuple=True)
+        cells = []
+        for i in range(layer_num):
+            cells.append(tf.nn.rnn_cell.LSTMCell(n_hidden_units, forget_bias=self.forget_bias, state_is_tuple=True))
+        # mlstm_cell = tf.contrib.rnn.MultiRNNCell([lstm_cell] * layer_num, state_is_tuple=True)
+        mlstm_cell = tf.contrib.rnn.MultiRNNCell(cells, state_is_tuple=True)
 
-        self.init_state = lstm_cell.zero_state(self.batch_size_t, dtype=tf.float32) # 初始化全零 state
-        outputs, self.init_state = tf.nn.dynamic_rnn(lstm_cell, X_in, initial_state=self.init_state, time_major=False)
+        self.init_state = mlstm_cell.zero_state(self.batch_size_t, dtype=tf.float32) # 初始化全零 state
+        outputs, self.init_state = tf.nn.dynamic_rnn(mlstm_cell, X_in, initial_state=self.init_state, time_major=False)
         # outputs, final_state = tf.nn.dynamic_rnn(mlstm_cell, X_in, dtype=tf.float32, time_major=False)
+        print(outputs)
         outputs = tf.unstack(tf.transpose(outputs, [1,0,2]))
+        print(outputs)
         z = tf.matmul(outputs[-1], weights['out']) + biases['out']    #选取最后一个 output
 
         # print(z.shape)
@@ -251,35 +259,43 @@ class CNN(TensorflowPilot):
         angle_val = np.array(Y_val[0])
         throttle_val = np.array(Y_val[1])
 
+        print("origin:"+str(len(img_train)))
+
+        img_train = img_train.reshape(-1, self.sequenceLen, cfg['CNN']['CNN_IMG_HEIGHT'],cfg['CNN']['CNN_IMG_WIDTH'],  3)
+        angle_train = angle_train.reshape(-1, self.sequenceLen, 15)
+        throttle_train = throttle_train.reshape(-1, self.sequenceLen, 1)
+
         total_train = len(img_train)
 
         total_val = len(img_val)
         # print(total_val)
 
-        img_val = img_val.reshape(-1, batch_size, 4,cfg['CNN']['CNN_IMG_HEIGHT'],cfg['CNN']['CNN_IMG_WIDTH'], 3)
+        img_val = img_val.reshape(-1, batch_size, self.sequenceLen,cfg['CNN']['CNN_IMG_HEIGHT'],cfg['CNN']['CNN_IMG_WIDTH'], 3)
         # print(img_val.shape)
-        angle_val = angle_val.reshape(-1, batch_size, 4, 15)
+        angle_val = angle_val.reshape(-1, batch_size, self.sequenceLen, 15)
         # print(img_val.shape)
-        throttle_val = throttle_val.reshape(-1, batch_size, 4, 1)
+        throttle_val = throttle_val.reshape(-1, batch_size, self.sequenceLen, 1)
 
-        train_steps = int(total_train // (batch_size*4))
-        val_steps = int(total_val // (batch_size*4))
-        print("total_train:"+str(total_train)+"train_steps:" + str(train_steps))
+        train_steps = int(total_train // (batch_size))
+        val_steps = int(total_val // (batch_size*self.sequenceLen))
+        print("total_train: "+str(total_train)+", train_steps: " + str(train_steps))
         # input("waiting")
 
         val_loss_min = 10000
         earlystop_num = 0
         earlystop_flag = 0
 
+
         init_state = None
         for epoch in range(epochs):
+            img_train = img_train
             index = np.random.permutation(total_train)
-            index = range(total_train)
             print('img shape: '+str(img_train[index].shape))
-            img_shuffle = img_train[index].reshape(-1, batch_size, 4, cfg['CNN']['CNN_IMG_HEIGHT'],cfg['CNN']['CNN_IMG_WIDTH'],  3)
-            angle_shuffle = angle_train[index].reshape(-1, batch_size, 4, 15)
-            throttle_shuffle = throttle_train[index].reshape(-1, batch_size, 4, 1)
+            img_shuffle = img_train[index].reshape(-1, batch_size, self.sequenceLen, cfg['CNN']['CNN_IMG_HEIGHT'],cfg['CNN']['CNN_IMG_WIDTH'],  3)
+            angle_shuffle = angle_train[index].reshape(-1, batch_size, self.sequenceLen, 15)
+            throttle_shuffle = throttle_train[index].reshape(-1, batch_size, self.sequenceLen, 1)
 
+            train_loss = train_angle_loss = train_throttle_loss = 0
             for train_step in range(train_steps):
                 img_batch = img_shuffle[train_step]
                 # print(angle_shuffle[train_step].transpose(1,0,2).shape)
@@ -298,25 +314,39 @@ class CNN(TensorflowPilot):
                     feed[self.init_state]=init_state
                 init_state, loss, angle_loss, throttle_loss, step, _ = self.sess.run([self.init_state, self.loss, self.angle_loss, self.throttle_loss, self.global_step, self.train_op], feed)
                 # print(init_state)
+                train_loss += loss
+                train_angle_loss += angle_loss
+                train_throttle_loss += throttle_loss
                 #10个batch输出一次
                 if (step+1) % 10 == 0:
                     output_log = "step: %d, loss: %.6f, angle_loss: %.6f, throttle_loss: %.6f" % ((step+1), loss, angle_loss, throttle_loss)
                     print(output_log)
+            train_loss /= train_steps
+            train_angle_loss /= train_steps
+            train_throttle_loss /= train_steps
+            output_log = "epoch: %d, train_loss: %.6f, train_angle_loss: %.6f, train_throttle_loss: %.6f" % (epoch, train_loss, train_angle_loss, train_throttle_loss)
+            print("\n")
+            print(output_log)
+            print("\n")
 
             val_loss = val_angle_loss = val_throttle_loss = 0
+            index = np.random.permutation(total_val)
             for val_step in range(val_steps):
                 img_batch = img_val[val_step]
-                angle_batch = angle_val[val_step].transpose(1,0,2)[3]
-                throttle_batch = throttle_val[val_step].transpose(1,0,2)[3]
+                angle_batch = angle_val[val_step].transpose(1,0,2)
+                angle_batch = angle_batch[len(angle_batch)-1]
+                throttle_batch = throttle_val[val_step].transpose(1,0,2)
+                throttle_batch = throttle_batch[len(throttle_batch)-1]
                 val_feed = {
                     self.x: img_batch, 
                     self.angle_target: angle_batch, 
                     self.throttle_target: throttle_batch,
                     self.batch_size_t: batch_size,
-                    self.state_keep_prob: 0.8,
-                    self.init_state: init_state
+                    self.state_keep_prob: 1
                 }
                 loss, angle_loss, throttle_loss = self.sess.run([self.loss, self.angle_loss, self.throttle_loss], val_feed)
+                output_log = "step: %d, loss: %.6f, angle_loss: %.6f, throttle_loss: %.6f" % ((val_step+1), loss, angle_loss, throttle_loss)
+                print(output_log)
                 val_loss += loss
                 val_throttle_loss += throttle_loss
                 val_angle_loss += angle_loss
@@ -345,12 +375,10 @@ class CNN(TensorflowPilot):
             if earlystop_flag:
                 print("Early Stop")
                 break
-            if val_angle_loss < 0.2:
-                print("stop!")
-                break
+
     def run(self, img_arr):   
         img_arr = img_arr.reshape((1,) + img_arr.shape)
-        print(img_arr.shape)
+
         feed = {self.x: img_arr,
                 self.state_keep_prob: 1,
                 self.batch_size_t: 1,}
