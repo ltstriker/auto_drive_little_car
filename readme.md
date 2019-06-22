@@ -10,7 +10,7 @@ manage_xxx.py:xxx网络运行的py文件
 xxx_readme.md文件:运行xxx.py文件的使用说明
 
 
-python manage2.py train --tub=/BIGDATA1/nsccgz_yfdu_5/liangt/carTrain/data/set1/tub_16_19-04-20 --model=lt-test
+python manage2.py train --tub=carTrain/data/set1/tub_16_19-04-20 --model=lt-test
 
 sudo python3 manage2.py drive
 sudo python3 manage2.py calibrate --channel 1
