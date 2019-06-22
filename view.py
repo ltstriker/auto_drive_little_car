@@ -18,6 +18,7 @@ class View(BaseCommand):
         parser = argparse.ArgumentParser(prog='view', usage='%(prog)s [options]')
         parser.add_argument('--model', help='The model used for auto driving')
         parser.add_argument('--tub', help='data for auto drive training')
+        parser.add_argument('--start', help='data of start')
         parsed_args = parser.parse_args(args)
         return parsed_args    
 
@@ -25,10 +26,10 @@ class View(BaseCommand):
         cfg = load_config()
         if args:
             args = self.parse_args(args)
-            self.view(cfg=cfg,model_path=args.model,tub=args.tub)
+            self.view(cfg=cfg,model_path=args.model,tub=args.tub,start=args.start)
         else:
             self.view(cfg)
-    def view(self,cfg, model_path=None, tub=None):
+    def view(self,cfg, model_path=None, tub=None, start=0):
 
         reset_graph()
         CNN_model = CNN(is_training=False)
@@ -39,12 +40,18 @@ class View(BaseCommand):
         tubs = os.listdir(tub)
         tubs = list(filter(lambda x:x.endswith('jpg'),tubs))
         tubs.sort(key=lambda x:int(x[:-21]))
+        tubs = tubs[int(start):]
+        seq_num = 8
+        sequence = np.zeros((seq_num,144,256,3))
         for etub in tubs:
             path = tub+'/'+etub
             print(tub,etub,path)
             img_PIL = Image.open(path)
             img_PIL_Tensor = np.array(img_PIL)
-            angle, throttle = CNN_model.run(img_PIL_Tensor)
+            for i in range(seq_num-1):
+                sequence[i] = sequence[i+1]
+            sequence[seq_num-1] = img_PIL_Tensor
+            angle, throttle = CNN_model.run(sequence)
             sviewer.run(path, angle, throttle)
 
 def execute_from_command_line():

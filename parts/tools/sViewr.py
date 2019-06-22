@@ -32,14 +32,13 @@ class sViewr():
             string=""
             for i in path.split('/')[:-1]:
                 string+=i+"/"
-                print(string)
             snum=path.split('/')[-1].split('_')[0]
 
             f=open(string+"record_"+snum+".json")
             rangle=json.loads(f.read())["user/angle"]
             f=open(string+"record_"+snum+".json")
             rthrottle=json.loads(f.read())["user/throttle"]
-            rThrottle = myfont.render(str(throttle), True, (0,255,0))
+            rThrottle = myfont.render(str(rthrottle), True, (0,255,0))
             f.close()
             
             #green line for real angle 

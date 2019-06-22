@@ -11,6 +11,8 @@ os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import argparse
+import numpy as np
+from PIL import Image
 
 #from docopt import docopt
 
@@ -24,6 +26,8 @@ from parts.controller.actuator import PCA9685, PWMSteering, PWMThrottle
 from parts.controller.transform import Lambda
 from parts.tools.datastore import TubHandler, TubGroup, Tub
 from parts.tools import data
+from parts.tools.sViewr import sViewr
+from parts.sensor import sequence
 
 
 class BaseCommand():
@@ -63,7 +67,6 @@ class Drive(BaseCommand):
         
         
         
-        
         #See if we should even run the pilot module. 
         #This is only needed because the part run_condition only accepts boolean
         def pilot_condition(mode):
@@ -73,6 +76,9 @@ class Drive(BaseCommand):
                 return True
         pilot_condition_part = Lambda(pilot_condition)
         V.add(pilot_condition_part, inputs=['user/mode'], outputs=['run_pilot'])
+        
+        seq = sequence(seq_num = 16)
+        V.add(seq, inputs=['cam/image_array'], outputs=['cam/image_array'], run_condition='run_pilot')
         
         #Run the pilot if the mode is not user.
 
@@ -166,6 +172,7 @@ class Train(BaseCommand):
         tubgroup = TubGroup(tub_names)
         X_train, Y_train, X_val, Y_val = tubgroup.get_train_val_gen(X_keys, y_keys,
                                                                     record_transform=train_record_transform,
+                                                                    seq_len = cfg['TRAINING']['SEQUENCE_LENGTH'],
                                                                     batch_size=cfg['TRAINING']['BATCH_SIZE'],
                                                                     train_frac=cfg['TRAINING']['TRAIN_TEST_SPLIT'])
         print('tub_names', tub_names)
@@ -257,6 +264,49 @@ class MakeMovie(BaseCommand):
 
         return image # returns a 8-bit RGB array
 
+class View(BaseCommand):
+    def parse_args(self, args):
+        parser = argparse.ArgumentParser(prog='view', usage='%(prog)s [options]')
+        parser.add_argument('--model', help='The model used for auto driving')
+        parser.add_argument('--tub', help='data for auto drive training')
+        parsed_args = parser.parse_args(args)
+        return parsed_args    
+
+    def run(self, args):
+        cfg = load_config()
+        if args:
+            args = self.parse_args(args)
+            self.view(cfg=cfg,model_path=args.model,tub=args.tub)
+        else:
+            self.view(cfg)
+    def view(self,cfg, model_path=None, tub=None):
+
+        reset_graph()
+        CNN_model = CNN(is_training=False)
+        if model_path:
+            print(model_path)
+            CNN_model.load(model_path)
+        sviewer=sViewr()
+        tubs = os.listdir(tub)
+        tubs = list(filter(lambda x:x.endswith('jpg'),tubs))
+        tubs.sort(key=lambda x:int(x[:-21]))
+        cam1 = np.zeros((144,256,3))
+        cam2 = np.zeros((144,256,3))
+        cam3 = np.zeros((144,256,3))
+        cam4 = np.zeros((144,256,3))
+        for etub in tubs:
+            path = tub+'/'+etub
+            print(tub,etub,path)
+            img_PIL = Image.open(path)
+            img_PIL_Tensor = np.array(img_PIL)
+            cam1 = cam2
+            cam2 = cam3
+            cam3 = cam4
+            cam4 = img_PIL_Tensor
+            cam = np.array([cam1,cam2,cam3,cam4])
+            angle, throttle = CNN_model.run(cam)
+            sviewer.run(path, angle, throttle)
+
 def execute_from_command_line():
     """
     This is the function linked to the "senserover" terminal command.
@@ -266,6 +316,7 @@ def execute_from_command_line():
             'train': Train,
             'calibrate': CalibrateCar,
             'makemovie': MakeMovie,
+            'view': View,
                 }
     args = sys.argv[:]
     command_text = args[1]
