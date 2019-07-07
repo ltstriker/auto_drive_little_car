@@ -7,7 +7,7 @@ import os,sys
 # AuraPackPath=os.path.abspath(os.curdir)+"/../"
 # sys.path.append(AuraPackPath)
 
-os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+os.environ["CUDA_VISIBLE_DEVICES"] = '5'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import argparse
@@ -27,7 +27,7 @@ from parts.controller.transform import Lambda
 from parts.tools.datastore import TubHandler, TubGroup, Tub
 from parts.tools import data
 from parts.tools.sViewr import sViewr
-from parts.sensor import sequence
+from parts.sensor.sequence import sequence
 
 
 class BaseCommand():

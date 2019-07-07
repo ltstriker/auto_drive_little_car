@@ -1,6 +1,6 @@
 项目结构：
 
-logs:用于tensorboard的记录，本文件内的内容不同步到gitlab中
+logs:用于tensorboard的记录，本文件内的内容不同步到github中
 models:存放网络训练后的模型
 
 config.yml:配置网络，小车等分辨率的选项
