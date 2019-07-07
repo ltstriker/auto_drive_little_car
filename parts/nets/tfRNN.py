@@ -14,6 +14,7 @@ import numpy as np
 import json
 from parts.tools import data
 from core.config import load_config
+from parts.tools import transform
 cfg=load_config()
 
 sess = None
@@ -126,7 +127,7 @@ class CNN(TensorflowPilot):
         #可视化
         self.writer = tf.summary.FileWriter("./logs",self.g)
        
-        n_hidden_units = 128
+        n_hidden_units = 256
         # print("h.shape")
         # print(h.shape)
         # print("self.IMAGE_DIM:")
@@ -153,7 +154,7 @@ class CNN(TensorflowPilot):
         h = tf.layers.conv2d(h, 1, 5, strides=2, activation=tf.nn.relu, name="conv2")
             # # self.viwer_op.append(tf.summary.image("layer_2_Conv2", self.Viwer(32,h)))
 
-        h = tf.layers.conv2d(h, 64, 5, strides=2, activation=tf.nn.relu, name="conv3")
+        h = tf.layers.conv2d(h, 32, 3, strides=2, activation=tf.nn.relu, name="conv3")
             # # self.viwer_op.append(tf.summary.image("layer_3_Conv3", self.Viwer(64,h)))
         h = tf.layers.conv2d(h, 64, 3, strides=2, activation=tf.nn.relu, name="conv4")
             # # self.viwer_op.append(tf.summary.image("layer_4_Conv4", self.Viwer(64,h)))
@@ -251,22 +252,40 @@ class CNN(TensorflowPilot):
         if not new_model:
             self.load(saved_model)
 
-        img_train = np.array(X_train[0])
-        angle_train = np.array(Y_train[0])
-        throttle_train = np.array(Y_train[1]).reshape(-1, 1)
+        img_total = np.array(X_train[0])
+        angle_total = np.array(Y_train[0])
+        throttle_total = np.array(Y_train[1]).reshape(-1, 1)
 
-        img_val = np.array(X_val[0])
-        angle_val = np.array(Y_val[0])
-        throttle_val = np.array(Y_val[1])
+        # img_val = np.array(X_val[0])
+        # angle_val = np.array(Y_val[0])
+        # throttle_val = np.array(Y_val[1])
+        print("image total :" + str(len(img_total)))
 
-        print("origin:"+str(len(img_train)))
+        img_total = img_total.reshape(-1, self.sequenceLen, cfg['CNN']['CNN_IMG_HEIGHT'],cfg['CNN']['CNN_IMG_WIDTH'],  3)
+        angle_total = angle_total.reshape(-1, self.sequenceLen, 15)
+        throttle_total = throttle_total.reshape(-1, self.sequenceLen, 1)
 
-        img_train = img_train.reshape(-1, self.sequenceLen, cfg['CNN']['CNN_IMG_HEIGHT'],cfg['CNN']['CNN_IMG_WIDTH'],  3)
-        angle_train = angle_train.reshape(-1, self.sequenceLen, 15)
-        throttle_train = throttle_train.reshape(-1, self.sequenceLen, 1)
+        total_img = len(img_total)
+        print(total_img)
+
+        index = np.random.permutation(total_img)
+        img_shuffle = img_total[index]
+        angle_shuffle = angle_total[index]
+        throttle_shuffle = throttle_total[index]
+
+        divide = total_img//32
+        divide = int(divide*0.8)*32
+        print(divide)
+
+        img_train = img_shuffle[:int(divide)]
+        angle_train = angle_shuffle[:int(divide)]
+        throttle_train = throttle_shuffle[:int(divide)]
+
+        img_val = img_shuffle[int(divide):]
+        angle_val = angle_shuffle[int(divide):]
+        throttle_val = throttle_shuffle[int(divide):]
 
         total_train = len(img_train)
-
         total_val = len(img_val)
         # print(total_val)
 
@@ -277,7 +296,7 @@ class CNN(TensorflowPilot):
         throttle_val = throttle_val.reshape(-1, batch_size, self.sequenceLen, 1)
 
         train_steps = int(total_train // (batch_size))
-        val_steps = int(total_val // (batch_size*self.sequenceLen))
+        val_steps = int(total_val // (batch_size))
         print("total_train: "+str(total_train)+", train_steps: " + str(train_steps))
         # input("waiting")
 
@@ -310,9 +329,7 @@ class CNN(TensorflowPilot):
                     self.batch_size_t: batch_size,
                     self.state_keep_prob: 0.5
                 }
-                if init_state is not None:
-                    feed[self.init_state]=init_state
-                init_state, loss, angle_loss, throttle_loss, step, _ = self.sess.run([self.init_state, self.loss, self.angle_loss, self.throttle_loss, self.global_step, self.train_op], feed)
+                loss, angle_loss, throttle_loss, step, _ = self.sess.run([self.loss, self.angle_loss, self.throttle_loss, self.global_step, self.train_op], feed)
                 # print(init_state)
                 train_loss += loss
                 train_angle_loss += angle_loss
@@ -330,7 +347,6 @@ class CNN(TensorflowPilot):
             print("\n")
 
             val_loss = val_angle_loss = val_throttle_loss = 0
-            index = np.random.permutation(total_val)
             for val_step in range(val_steps):
                 img_batch = img_val[val_step]
                 angle_batch = angle_val[val_step].transpose(1,0,2)

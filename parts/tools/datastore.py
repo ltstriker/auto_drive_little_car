@@ -406,7 +406,7 @@ class Tub(object):
 
                 if record_transform:
                     record_dict = record_transform(record_dict)
-
+                print(record_dict["cam/image_array"])
                 record_dict = self.read_record(record_dict)
 
                 yield record_dict
@@ -423,6 +423,7 @@ class Tub(object):
             record_list = []
             for _ in range(batch_size+seq_len-1):
                 record_list.append(next(record_gen))
+            print('\n')
             sequence_list = []
             for i in range(batch_size):
                 for j in range(seq_len):
@@ -500,11 +501,10 @@ class Tub(object):
         length = len(self.df)
         # print(length)
         length = int(length*train_frac)
-        train_df = train=self.df[:length]
+        train_df = train=self.df
         # print(train_df['cam/image_array'])
         val_df = self.df[length:]
         # print(val_df['cam/image_array'])
-
         X_train, Y_train = self.get_train_gen(X_keys=X_keys, Y_keys=Y_keys, batch_size=batch_size, seq_len=seq_len, record_transform=record_transform, df=train_df)
         X_val, Y_val = self.get_train_gen(X_keys=X_keys, Y_keys=Y_keys, batch_size=batch_size, seq_len=seq_len, record_transform=record_transform, df=val_df)
         # print(len(X_val[0]), len(X_train[0]))
